@@ -801,6 +801,49 @@ def get_admin_stats():
         
     except Exception as e:
         return jsonify({'message': f'Error: {str(e)}'}), 500
+@app.route('/api/admin/create-first-admin', methods=['POST'])
+def create_first_admin():
+    """
+    TEMPORARY ENDPOINT - Create first admin user
+    DELETE THIS AFTER USE!
+    """
+    try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+        
+        # Check if any admin exists
+        admin_count = db.admins.count_documents({})
+        
+        # Only allow if no admins exist (security measure)
+        if admin_count > 0:
+            return jsonify({
+                'message': 'Admin users already exist. Use /api/admin/register instead.',
+                'count': admin_count
+            }), 403
+        
+        # Create default admin
+        default_admin = {
+            'username': 'admin',
+            'email': 'admin@armorofgod.digital',
+            'password': bcrypt.generate_password_hash('ChangeMe123!').decode('utf-8'),
+            'createdAt': datetime.utcnow()
+        }
+        
+        result = db.admins.insert_one(default_admin)
+        
+        return jsonify({
+            'message': 'First admin created successfully!',
+            'credentials': {
+                'username': 'admin',
+                'password': 'ChangeMe123!',
+                'warning': 'CHANGE THIS PASSWORD IMMEDIATELY!'
+            },
+            'adminId': str(result.inserted_id)
+        }), 201
+        
+    except Exception as e:
+        return jsonify({'message': f'Error: {str(e)}'}), 500
 
 # ==================== RUN APP ====================
 
