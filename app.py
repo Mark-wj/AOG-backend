@@ -21,7 +21,14 @@ app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-secret-key-chan
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
 
 # Initialize extensions
-CORS(app)
+from flask_cors import CORS
+
+CORS(app, origins=[
+    'https://armorofgodministry.org',
+    'https://www.armorofgodministry.org',
+    'https://your-frontend.vercel.app',
+    'http://localhost:5173'  
+])
 mongo = PyMongo(app)
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
