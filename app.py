@@ -826,7 +826,7 @@ def create_first_admin():
         default_admin = {
             'username': 'admin',
             'email': 'admin@armorofgod.digital',
-            'password': bcrypt.generate_password_hash('ChangeMe123!').decode('utf-8'),
+            'password': bcrypt.generate_password_hash('AOG@26').decode('utf-8'),
             'createdAt': datetime.utcnow()
         }
         
@@ -836,8 +836,6 @@ def create_first_admin():
             'message': 'First admin created successfully!',
             'credentials': {
                 'username': 'admin',
-                'password': 'ChangeMe123!',
-                'warning': 'CHANGE THIS PASSWORD IMMEDIATELY!'
             },
             'adminId': str(result.inserted_id)
         }), 201
