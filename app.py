@@ -21,16 +21,16 @@ app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-secret-key-chan
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
 
 # Initialize extensions
-from flask_cors import CORS
-
-CORS(app, resources={
-    r"/*": {
-        "origins": [
-            "https://www.armorofgod.digital",
-            "http://localhost:3000"
-        ]
-    }
-})
+CORS(app, 
+     origins=[
+         'https://www.armorofgod.digital', 
+         'https://armorofgod.digital',       
+         'http://localhost:5173'             
+     ],
+     methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+     allow_headers=['Content-Type', 'Authorization'],
+     supports_credentials=True
+)
 
 mongo = PyMongo(app)
 bcrypt = Bcrypt(app)
