@@ -801,12 +801,20 @@ def get_admin_stats():
         
     except Exception as e:
         return jsonify({'message': f'Error: {str(e)}'}), 500
-@app.route('/api/admin/create-first-admin', methods=['POST'])
+
+# ==================== TEMPORARY ADMIN CREATION ====================
+# ⚠️ DELETE THIS ENDPOINT AFTER CREATING YOUR ADMIN USER!
+
+@app.route('/api/admin/create-first-admin', methods=['POST', 'OPTIONS'])
 def create_first_admin():
     """
     TEMPORARY ENDPOINT - Create first admin user
-    DELETE THIS AFTER USE!
+    DELETE THIS AFTER USE FOR SECURITY!
     """
+    # Handle preflight
+    if request.method == 'OPTIONS':
+        return '', 204
+        
     try:
         db = get_db()
         if db is None:
@@ -818,15 +826,16 @@ def create_first_admin():
         # Only allow if no admins exist (security measure)
         if admin_count > 0:
             return jsonify({
-                'message': 'Admin users already exist. Use /api/admin/register instead.',
-                'count': admin_count
+                'message': 'Admin users already exist. Use /api/admin/register instead or delete existing admins first.',
+                'count': admin_count,
+                'note': 'If you forgot your password, delete admins from MongoDB and try again.'
             }), 403
         
         # Create default admin
         default_admin = {
             'username': 'admin',
             'email': 'admin@armorofgod.digital',
-            'password': bcrypt.generate_password_hash('AOG@26').decode('utf-8'),
+            'password': bcrypt.generate_password_hash('ChangeMe123!').decode('utf-8'),
             'createdAt': datetime.utcnow()
         }
         
@@ -836,11 +845,16 @@ def create_first_admin():
             'message': 'First admin created successfully!',
             'credentials': {
                 'username': 'admin',
+                'password': 'ChangeMe123!',
+                'email': 'admin@armorofgod.digital',
+                'warning': '⚠️ CHANGE THIS PASSWORD IMMEDIATELY AFTER LOGIN!'
             },
-            'adminId': str(result.inserted_id)
+            'adminId': str(result.inserted_id),
+            'important': 'DELETE the /api/admin/create-first-admin endpoint from app.py NOW!'
         }), 201
         
     except Exception as e:
+        print(f"Admin creation error: {str(e)}")
         return jsonify({'message': f'Error: {str(e)}'}), 500
 
 # ==================== RUN APP ====================
