@@ -17,7 +17,7 @@ app = Flask(__name__)
 # Explicitly load environment variables with fallbacks
 MONGO_URI = os.environ.get('MONGO_URI') or os.getenv('MONGO_URI')
 JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or os.getenv('JWT_SECRET_KEY') or 'default-jwt-secret-change-me'
-FLASK_ENV = os.environ.get('FLASK_ENV') or os.getenv('FLASK_ENV', 'development')
+FLASK_ENV = os.environ.get('FLASK_ENV') or os.getenv('FLASK_ENV', 'production')
 
 # Log configuration (helps debug Railway issues)
 print(f"🔧 Environment: {FLASK_ENV}")
@@ -32,20 +32,15 @@ app.config['JWT_SECRET_KEY'] = JWT_SECRET_KEY
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
 
 # ==================== CRITICAL: CORS CONFIGURATION ====================
-# Allow your production domain and localhost for testing
+# **UPDATED** - Allow ALL origins in production, restrict in development later
 CORS(app, 
      resources={r"/*": {
-         "origins": [
-             "https://www.armorofgod.digital",
-             "https://armorofgod.digital",
-             "http://localhost:5173",
-             "http://localhost:3000"
-         ]
-     }},
-     methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-     allow_headers=['Content-Type', 'Authorization'],
-     supports_credentials=True,
-     expose_headers=['Content-Type', 'Authorization']
+         "origins": "*",  # Allow all origins for now
+         "methods": ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+         "allow_headers": ['Content-Type', 'Authorization'],
+         "supports_credentials": True,
+         "expose_headers": ['Content-Type', 'Authorization']
+     }}
 )
 
 # ==================== INITIALIZE EXTENSIONS ====================
@@ -166,6 +161,10 @@ def register_admin():
             
         data = request.get_json()
         
+        # Validate input
+        if not data or 'username' not in data or 'password' not in data or 'email' not in data:
+            return jsonify({'message': 'Missing required fields'}), 400
+        
         # Check if admin already exists
         existing_admin = db.admins.find_one({'username': data['username']})
         if existing_admin:
@@ -190,11 +189,16 @@ def register_admin():
         }), 201
         
     except Exception as e:
+        print(f"Registration error: {str(e)}")
         return jsonify({'message': f'Error: {str(e)}'}), 500
 
-@app.route('/api/admin/login', methods=['POST'])
+@app.route('/api/admin/login', methods=['POST', 'OPTIONS'])
 def login_admin():
     """Admin login"""
+    # Handle preflight
+    if request.method == 'OPTIONS':
+        return '', 204
+        
     try:
         db = get_db()
         if db is None:
@@ -202,10 +206,18 @@ def login_admin():
             
         data = request.get_json()
         
+        # Validate input
+        if not data or 'username' not in data or 'password' not in data:
+            return jsonify({'message': 'Missing username or password'}), 400
+        
         # Find admin
         admin = db.admins.find_one({'username': data['username']})
         
-        if not admin or not bcrypt.check_password_hash(admin['password'], data['password']):
+        if not admin:
+            return jsonify({'message': 'Invalid credentials'}), 401
+        
+        # Check password
+        if not bcrypt.check_password_hash(admin['password'], data['password']):
             return jsonify({'message': 'Invalid credentials'}), 401
         
         # Create access token
@@ -221,6 +233,7 @@ def login_admin():
         }), 200
         
     except Exception as e:
+        print(f"Login error: {str(e)}")
         return jsonify({'message': f'Error: {str(e)}'}), 500
 
 # ==================== EVENTS ROUTES ====================
@@ -716,11 +729,10 @@ def get_music_settings():
         db = get_db()
         if db is None:
             return jsonify({'message': 'Database not available'}), 503
-        
+            
         settings = db.settings.find_one({'type': 'site'})
         
-        # ✅ explicit None check
-        if settings is None or not settings.get('musicEnabled', False):
+        if not settings or not settings.get('musicEnabled', False):
             return jsonify({'musicUrl': ''}), 200
         
         return jsonify({
@@ -729,7 +741,6 @@ def get_music_settings():
         
     except Exception as e:
         return jsonify({'message': f'Error: {str(e)}'}), 500
-
 
 @app.route('/api/settings', methods=['PUT'])
 @jwt_required()
