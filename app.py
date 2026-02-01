@@ -18,8 +18,16 @@ app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
 
 # ==================== CRITICAL: CORS CONFIGURATION ====================
+# Allow your production domain and localhost for testing
 CORS(app, 
-     resources={r"/api/*": {"origins": "*"}},
+     resources={r"/*": {
+         "origins": [
+             "https://www.armorofgod.digital",
+             "https://armorofgod.digital",
+             "http://localhost:5173",
+             "http://localhost:3000"
+         ]
+     }},
      methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
      allow_headers=['Content-Type', 'Authorization'],
      supports_credentials=True,
@@ -662,6 +670,7 @@ def get_subscribers():
 # ==================== SETTINGS ROUTES ====================
 
 @app.route('/api/settings', methods=['GET'])
+@app.route('/settings', methods=['GET'])  # Compatibility route
 def get_settings():
     """Get site settings (public endpoint for music URL)"""
     try:
@@ -686,6 +695,7 @@ def get_settings():
         return jsonify({'message': f'Error: {str(e)}'}), 500
 
 @app.route('/api/settings/music', methods=['GET'])
+@app.route('/settings/music', methods=['GET'])  # Compatibility route
 def get_music_settings():
     """Get music settings only (public endpoint)"""
     try:
