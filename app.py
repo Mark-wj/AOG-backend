@@ -8,13 +8,27 @@ from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 
 # ==================== CONFIGURATION ====================
-app.config['MONGO_URI'] = os.getenv('MONGO_URI')
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
+# Explicitly load environment variables with fallbacks
+MONGO_URI = os.environ.get('MONGO_URI') or os.getenv('MONGO_URI')
+JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or os.getenv('JWT_SECRET_KEY') or 'default-jwt-secret-change-me'
+FLASK_ENV = os.environ.get('FLASK_ENV') or os.getenv('FLASK_ENV', 'development')
+
+# Log configuration (helps debug Railway issues)
+print(f"🔧 Environment: {FLASK_ENV}")
+print(f"🔧 MONGO_URI configured: {bool(MONGO_URI)}")
+print(f"🔧 JWT_SECRET_KEY configured: {bool(JWT_SECRET_KEY)}")
+
+if not MONGO_URI:
+    print("⚠️  WARNING: MONGO_URI not set! Database will not work.")
+    
+app.config['MONGO_URI'] = MONGO_URI
+app.config['JWT_SECRET_KEY'] = JWT_SECRET_KEY
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
 
 # ==================== CRITICAL: CORS CONFIGURATION ====================
