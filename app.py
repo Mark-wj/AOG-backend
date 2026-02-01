@@ -52,8 +52,11 @@ jwt = JWTManager(app)
 
 def get_db():
     """Safely get database connection"""
-    if mongo and mongo.db:
-        return mongo.db
+    try:
+        if mongo is not None and mongo.db is not None:
+            return mongo.db
+    except Exception:
+        pass
     return None
 
 def serialize_doc(doc):
@@ -114,7 +117,7 @@ def health_check():
             }), 500
         
         # Check if mongo instance exists
-        if not mongo:
+        if mongo is None:
             return jsonify({
                 'status': 'unhealthy',
                 'database': 'disconnected',
