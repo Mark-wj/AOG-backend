@@ -8,3 +8,4 @@ python-dotenv==1.0.0
 python-dateutil==2.8.2
 email-validator==2.1.0
 flask-debugtoolbar==0.14.1
+gunicorn==21.2.0
