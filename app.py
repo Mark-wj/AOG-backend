@@ -716,10 +716,11 @@ def get_music_settings():
         db = get_db()
         if db is None:
             return jsonify({'message': 'Database not available'}), 503
-            
+        
         settings = db.settings.find_one({'type': 'site'})
         
-        if not settings or not settings.get('musicEnabled', False):
+        # ✅ explicit None check
+        if settings is None or not settings.get('musicEnabled', False):
             return jsonify({'musicUrl': ''}), 200
         
         return jsonify({
@@ -728,6 +729,7 @@ def get_music_settings():
         
     except Exception as e:
         return jsonify({'message': f'Error: {str(e)}'}), 500
+
 
 @app.route('/api/settings', methods=['PUT'])
 @jwt_required()
