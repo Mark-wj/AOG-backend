@@ -18,36 +18,26 @@ app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
 
 # ==================== CRITICAL: CORS CONFIGURATION ====================
-# This MUST be configured correctly for your frontend to work
 CORS(app, 
-     resources={r"/api/*": {"origins": "*"}},  # Allow all origins for /api/* routes
+     resources={r"/api/*": {"origins": "*"}},
      methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
      allow_headers=['Content-Type', 'Authorization'],
      supports_credentials=True,
      expose_headers=['Content-Type', 'Authorization']
 )
 
-# Alternative specific configuration (use this after testing):
-# CORS(app, 
-#      resources={r"/api/*": {
-#          "origins": [
-#              "https://www.armorofgod.digital",
-#              "https://armorofgod.digital",
-#              "http://localhost:5173"
-#          ]
-#      }},
-#      methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-#      allow_headers=['Content-Type', 'Authorization'],
-#      supports_credentials=True
-# )
-
 # ==================== INITIALIZE EXTENSIONS ====================
 mongo = PyMongo(app)
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
-db = mongo.db
 
 # ==================== HELPER FUNCTIONS ====================
+
+def get_db():
+    """Safely get database connection"""
+    if mongo and mongo.db:
+        return mongo.db
+    return None
 
 def serialize_doc(doc):
     """Convert MongoDB document to JSON-serializable format"""
@@ -95,19 +85,51 @@ def index():
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
+    """Health check endpoint with improved error handling"""
     try:
+        # Check if MONGO_URI is configured
+        if not app.config.get('MONGO_URI'):
+            return jsonify({
+                'status': 'unhealthy',
+                'database': 'disconnected',
+                'error': 'MONGO_URI not configured',
+                'timestamp': datetime.utcnow().isoformat()
+            }), 500
+        
+        # Check if mongo instance exists
+        if not mongo:
+            return jsonify({
+                'status': 'unhealthy',
+                'database': 'disconnected',
+                'error': 'MongoDB instance not initialized',
+                'timestamp': datetime.utcnow().isoformat()
+            }), 500
+        
+        # Check if database connection is available
+        db = get_db()
+        if db is None:
+            return jsonify({
+                'status': 'unhealthy',
+                'database': 'disconnected',
+                'error': 'Database connection is None - check MONGO_URI',
+                'timestamp': datetime.utcnow().isoformat()
+            }), 500
+        
+        # Try to ping the database
         db.command('ping')
+        
         return jsonify({
             'status': 'healthy',
             'database': 'connected',
             'timestamp': datetime.utcnow().isoformat()
         }), 200
+        
     except Exception as e:
         return jsonify({
             'status': 'unhealthy',
             'database': 'disconnected',
-            'error': str(e)
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
         }), 500
 
 # ==================== AUTHENTICATION ROUTES ====================
@@ -116,6 +138,10 @@ def health_check():
 def register_admin():
     """Register new admin user"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         data = request.get_json()
         
         # Check if admin already exists
@@ -148,6 +174,10 @@ def register_admin():
 def login_admin():
     """Admin login"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         data = request.get_json()
         
         # Find admin
@@ -177,6 +207,10 @@ def login_admin():
 def get_events():
     """Get all events, optionally filtered by category"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         category = request.args.get('category')
         query = {'category': category} if category else {}
         
@@ -190,6 +224,10 @@ def get_events():
 def get_event(event_id):
     """Get single event by ID"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         event = db.events.find_one({'_id': ObjectId(event_id)})
         
         if not event:
@@ -205,6 +243,10 @@ def get_event(event_id):
 def create_event():
     """Create new event (protected)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         data = request.get_json()
         
         event_data = {
@@ -233,6 +275,10 @@ def create_event():
 def update_event(event_id):
     """Update event (protected)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         data = request.get_json()
         
         update_data = {
@@ -264,6 +310,10 @@ def update_event(event_id):
 def delete_event(event_id):
     """Delete event (protected)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         result = db.events.delete_one({'_id': ObjectId(event_id)})
         
         if result.deleted_count == 0:
@@ -280,6 +330,10 @@ def delete_event(event_id):
 def get_sermons():
     """Get all sermons"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         sermons = list(db.sermons.find().sort('date', -1))
         return jsonify(serialize_doc(sermons)), 200
         
@@ -290,6 +344,10 @@ def get_sermons():
 def get_sermon(sermon_id):
     """Get single sermon and increment view count"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         sermon = db.sermons.find_one({'_id': ObjectId(sermon_id)})
         
         if not sermon:
@@ -313,6 +371,10 @@ def get_sermon(sermon_id):
 def create_sermon():
     """Create new sermon (protected)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         data = request.get_json()
         
         sermon_data = {
@@ -343,6 +405,10 @@ def create_sermon():
 def update_sermon(sermon_id):
     """Update sermon (protected)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         data = request.get_json()
         
         update_data = {
@@ -375,6 +441,10 @@ def update_sermon(sermon_id):
 def delete_sermon(sermon_id):
     """Delete sermon (protected)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         result = db.sermons.delete_one({'_id': ObjectId(sermon_id)})
         
         if result.deleted_count == 0:
@@ -391,6 +461,10 @@ def delete_sermon(sermon_id):
 def get_gallery():
     """Get all gallery images, optionally filtered by category"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         category = request.args.get('category')
         query = {'category': category} if category else {}
         
@@ -405,6 +479,10 @@ def get_gallery():
 def create_gallery_image():
     """Upload gallery image (protected)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         data = request.get_json()
         
         image_data = {
@@ -430,6 +508,10 @@ def create_gallery_image():
 def delete_gallery_image(image_id):
     """Delete gallery image (protected)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         result = db.gallery.delete_one({'_id': ObjectId(image_id)})
         
         if result.deleted_count == 0:
@@ -446,6 +528,10 @@ def delete_gallery_image(image_id):
 def submit_message():
     """Submit contact form message (public)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         data = request.get_json()
         
         message_data = {
@@ -472,6 +558,10 @@ def submit_message():
 def get_messages():
     """Get all messages (protected)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         messages = list(db.messages.find().sort('createdAt', -1))
         return jsonify(serialize_doc(messages)), 200
         
@@ -483,6 +573,10 @@ def get_messages():
 def update_message_status(message_id):
     """Update message status (protected)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         data = request.get_json()
         
         result = db.messages.update_one(
@@ -503,6 +597,10 @@ def update_message_status(message_id):
 def delete_message(message_id):
     """Delete message (protected)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         result = db.messages.delete_one({'_id': ObjectId(message_id)})
         
         if result.deleted_count == 0:
@@ -519,6 +617,10 @@ def delete_message(message_id):
 def subscribe_newsletter():
     """Subscribe to newsletter (public)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         data = request.get_json()
         
         # Check if already subscribed
@@ -547,6 +649,10 @@ def subscribe_newsletter():
 def get_subscribers():
     """Get all subscribers (protected)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         subscribers = list(db.subscribers.find({'status': 'active'}))
         return jsonify(serialize_doc(subscribers)), 200
         
@@ -559,6 +665,10 @@ def get_subscribers():
 def get_settings():
     """Get site settings (public endpoint for music URL)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         settings = db.settings.find_one({'type': 'site'})
         
         if not settings:
@@ -579,6 +689,10 @@ def get_settings():
 def get_music_settings():
     """Get music settings only (public endpoint)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         settings = db.settings.find_one({'type': 'site'})
         
         if not settings or not settings.get('musicEnabled', False):
@@ -596,6 +710,10 @@ def get_music_settings():
 def update_settings():
     """Update site settings (protected)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         data = request.get_json()
         
         settings_data = {
@@ -626,6 +744,10 @@ def update_settings():
 def get_admin_stats():
     """Get dashboard statistics (protected)"""
     try:
+        db = get_db()
+        if db is None:
+            return jsonify({'message': 'Database not available'}), 503
+            
         stats = {
             'totalEvents': db.events.count_documents({}),
             'totalSermons': db.sermons.count_documents({}),
