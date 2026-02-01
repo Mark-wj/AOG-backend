@@ -23,12 +23,15 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
 # Initialize extensions
 from flask_cors import CORS
 
-CORS(app, origins=[
-    'https://armorofgodministry.org',
-    'https://www.armorofgodministry.org',
-    'https://your-frontend.vercel.app',
-    'http://localhost:5173'  
-])
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "https://www.armorofgod.digital",
+            "http://localhost:3000"
+        ]
+    }
+})
+
 mongo = PyMongo(app)
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
