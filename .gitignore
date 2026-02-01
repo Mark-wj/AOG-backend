@@ -1,0 +1,13 @@
+# .gitignore
+node_modules/
+dist/
+.env
+.env.local
+.env.production
+backend/venv/
+backend/__pycache__/
+backend/.env
+backend/seed_database.py
+*.pyc
+.DS_Store
+
